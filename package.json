@@ -1,0 +1,19 @@
+{
+  "name": "3d-virtual-museum",
+  "version": "1.0.0",
+  "description": "3D Virtual Museum Gallery with Interactive Exhibits, Story Narration, and Background Music",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "serve": "node server.js"
+  },
+  "keywords": [
+    "threejs",
+    "3d-museum",
+    "virtual-gallery",
+    "interactive"
+  ],
+  "author": "",
+  "license": "ISC"
+}

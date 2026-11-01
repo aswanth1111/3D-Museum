@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Virtual Art Museum | Grand Masterpieces</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏛️</text></svg>">
+</head>
+<body>
+    <!-- 3D WebGL Canvas Viewport -->
+    <div id="canvas-container"></div>
+
+    <!-- Center Crosshair & Interactive Raycast Hint -->
+    <div id="crosshair"></div>
+    <div id="hover-hint">Click to Inspect Exhibit</div>
+
+    <!-- Top Navigation & Brand Header -->
+    <header class="museum-hud">
+        <div class="brand-header">
+            <span class="brand-logo">🏛️</span>
+            <div>
+                <h1 class="brand-title">GRAND MASTERPIECES</h1>
+                <p class="brand-sub">LOVE, CARE & MEMORIES GALLERY</p>
+            </div>
+        </div>
+
+        <div class="hud-actions">
+            <!-- View toggle removed — first-person only -->
+
+            <button id="btn-audio-toggle" class="hud-btn ui-interactive" title="Toggle Background Music">
+                <span class="btn-icon">🎵</span>
+                <span class="btn-label">Mute Music</span>
+            </button>
+
+            <button id="btn-tour" class="hud-btn ui-interactive" title="Cinematic Automated Tour">
+                <span class="btn-icon">✨</span>
+                <span class="btn-label">Guided Tour</span>
+            </button>
+
+            <!-- ADMIN ONLY buttons — hidden for visitors by JS -->
+            <button id="btn-share" class="hud-btn ui-interactive admin-only" title="Share This Museum with Someone Special">
+                <span class="btn-icon">🔗</span>
+                <span class="btn-label">Share Museum</span>
+            </button>
+
+            <button id="btn-curator" class="hud-btn ui-interactive admin-only" title="Customize Museum & Dedication">
+                <span class="btn-icon">🎨</span>
+                <span class="btn-label">Curator Mode</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Bottom Desktop Controls Guide -->
+    <div class="controls-guide">
+        <div class="control-item">
+            <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> Move
+        </div>
+        <div class="control-item">
+            <span class="kbd">Mouse</span> Look Around
+        </div>
+        <div class="control-item">
+            <span class="kbd">Shift</span> Sprint
+        </div>
+        <div class="control-item">
+            <span class="kbd">Click</span> Inspect Artwork
+        </div>
+    </div>
+
+    <!-- Mobile Virtual Touch Joysticks -->
+    <div id="touch-zone-left"></div>
+    <div id="touch-zone-right"></div>
+    <div id="joystick-base">
+        <div id="joystick-knob"></div>
+    </div>
+
+    <!-- Welcome Entrance Overlay (Unlocks Web Audio & Introduces Experience) -->
+    <div id="welcome-overlay">
+        <div class="welcome-card">
+            <div class="welcome-icon">🏛️</div>
+            <h2 class="welcome-title" id="welcome-title">GRAND MASTERPIECES</h2>
+            <h3 class="welcome-subtitle" id="welcome-subtitle">A Curated Journey Through Art History</h3>
+            <p class="welcome-text" id="welcome-text">
+                Welcome to an interactive 3D virtual museum. Stroll freely through the sunlit gallery halls, pause at each masterpiece to discover its story, watch art documentaries in the theater, and experience the quiet beauty of human creativity.
+            </p>
+            <!-- Visitor badge — shown only when ?for= is set -->
+            <div id="welcome-visitor-badge" style="display:none; margin-bottom: 16px; background: linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.06)); border: 1px solid rgba(212,175,55,0.4); border-radius: 12px; padding: 10px 18px;">
+                <span style="font-size:13px; color:var(--gold-light); font-family:'Cinzel',serif; letter-spacing:1px;">🎁 Specially curated for</span>
+                <span id="welcome-recipient-name" style="display:block; font-size:22px; color:var(--gold); font-family:'Cinzel',serif; font-weight:700; margin-top:4px;"></span>
+            </div>
+            <button id="btn-enter-museum" class="btn-primary ui-interactive">ENTER THE MUSEUM</button>
+        </div>
+    </div>
+
+    <!-- Artwork Inspection & In-Place Editing Modal -->
+    <div id="artwork-modal" class="modal-backdrop">
+        <div class="artwork-modal-card ui-interactive">
+            <button id="modal-close-btn" class="modal-close" title="Close">✕</button>
+            <div class="modal-image-col">
+                <img id="modal-artwork-img" src="" alt="Artwork">
+                <div id="edit-img-preview-wrap" style="display: none; width: 100%; text-align: center;">
+                    <p style="font-size: 11px; color: var(--gold); margin-bottom: 6px;">New Image Preview:</p>
+                    <img id="edit-artwork-img-preview" src="" style="max-height: 220px; border: 2px dashed var(--gold); border-radius: 6px;" alt="Preview">
+                </div>
+            </div>
+
+            <!-- View Mode Container -->
+            <div id="modal-view-container" class="modal-info-col">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                    <h2 id="modal-artwork-title" class="modal-title"></h2>
+                    <button id="btn-edit-exhibit" class="modal-action-btn" style="padding: 6px 14px; font-size: 12px; margin-left: 12px; white-space: nowrap;" title="Edit this poster data">
+                        <span>✏️ Edit Exhibit</span>
+                    </button>
+                </div>
+                <h4 id="modal-artwork-artist" class="modal-artist"></h4>
+                <div id="modal-artwork-meta" class="modal-meta"></div>
+                <p id="modal-artwork-desc" class="modal-desc"></p>
+
+                <!-- Voice Selection Controls -->
+                <div class="voice-selector-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label for="select-voice" style="font-size: 12px; color: var(--gold-light); font-weight: 600;">🎙️ Storyteller Voice:</label>
+                        <span id="voice-type-badge" style="font-size: 10px; background: rgba(212, 175, 55, 0.2); color: var(--gold); padding: 2px 8px; border-radius: 10px;">Crystal Clear HD</span>
+                    </div>
+                    <select id="select-voice" class="custom-voice-dropdown"></select>
+                </div>
+
+                <div class="modal-actions" style="margin-top: 18px;">
+                    <button id="btn-narration" class="modal-action-btn" title="Audio Narration">
+                        <span class="btn-icon">🔊</span>
+                        <span id="narration-btn-label">Listen to Story</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- In-Place Edit Mode Container -->
+            <div id="modal-edit-container" class="modal-info-col" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="font-family: 'Cinzel', serif; color: var(--gold-light); font-size: 18px;">✏️ EDIT POSTER & DATA</h3>
+                    <span style="font-size: 11px; color: var(--text-muted);">Real-time 3D Sync</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-art-title">Title</label>
+                    <input type="text" id="edit-art-title">
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit-art-artist">Artist / Creator</label>
+                        <input type="text" id="edit-art-artist">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="edit-art-year">Time / Year / Date</label>
+                        <input type="text" id="edit-art-year">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-art-meta">City / Location / Details (Optional)</label>
+                    <input type="text" id="edit-art-meta" placeholder="e.g., Paris, France (leave blank to omit)">
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-art-desc">Story / Content</label>
+                    <textarea id="edit-art-desc" rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-art-file">Replace Image (Upload File)</label>
+                    <input type="file" id="edit-art-file" accept="image/*">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 14px;">
+                    <button id="btn-save-edit-exhibit" class="btn-primary" style="flex: 1; padding: 10px 18px; font-size: 13px;">💾 SAVE CHANGES</button>
+                    <button id="btn-cancel-edit-exhibit" style="background: transparent; border: 1px solid var(--text-muted); color: var(--text-secondary); padding: 10px 18px; border-radius: 20px; cursor: pointer; font-size: 13px;">✕ Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Curator Mode Customization Drawer / Modal -->
+    <div id="curator-modal" class="modal-backdrop">
+        <div class="curator-card ui-interactive">
+            <button id="curator-close-btn" class="modal-close" title="Close">✕</button>
+
+            <!-- Section 1: Entrance Dedication -->
+            <div class="curator-section">
+                <h3 class="section-title">🏛️ ENTRANCE DEDICATION PLAQUE</h3>
+                <div class="form-group">
+                    <label for="curator-ded-title">Dedication Title</label>
+                    <input type="text" id="curator-ded-title" placeholder="Welcome to the Grand Masterpieces Gallery">
+                </div>
+                <div class="form-group">
+                    <label for="curator-ded-subtitle">Subtitle</label>
+                    <input type="text" id="curator-ded-subtitle" placeholder="A Curated Journey Through Art History">
+                </div>
+                <div class="form-group">
+                    <label for="curator-ded-body">Dedication Message / Story</label>
+                    <textarea id="curator-ded-body" rows="3" placeholder="Step inside this serene architectural space..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="curator-ded-signature">Signature / Author</label>
+                    <input type="text" id="curator-ded-signature" placeholder="The Curators • Virtual Museum Collection">
+                </div>
+                <button id="btn-save-curation" class="btn-primary" style="padding: 10px 24px; font-size: 13px; margin-top: 6px;">SAVE DEDICATION</button>
+            </div>
+
+            <!-- Section 2: Floating Memory Wall (New!) -->
+            <div class="curator-section">
+                <h3 class="section-title">✨ 3D FLOATING MEMORY WALL</h3>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Add personal photos that float and levitate in 3D mid-air above the central gallery aisle.</p>
+                <div class="form-group">
+                    <label for="curator-mem-title">Memory Title</label>
+                    <input type="text" id="curator-mem-title" placeholder="e.g., Summer Trip to Paris">
+                </div>
+                <div class="form-group">
+                    <label for="curator-mem-date">Date / Year</label>
+                    <input type="text" id="curator-mem-date" placeholder="e.g., August 2025">
+                </div>
+                <div class="form-group">
+                    <label for="curator-mem-desc">Memory Story / Note</label>
+                    <textarea id="curator-mem-desc" rows="2" placeholder="Write what made this moment special..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="curator-mem-bench">Location in Gallery</label>
+                    <select id="curator-mem-bench" style="width: 100%; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 8px; padding: 10px 14px; color: var(--text-primary); font-size: 13px;">
+                        <option value="0">First Floating Cluster (Gallery Front)</option>
+                        <option value="1">Second Floating Cluster (Gallery Center)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="curator-mem-file">Upload Memory Photo</label>
+                    <input type="file" id="curator-mem-file" accept="image/*">
+                    <img id="curator-mem-preview" class="image-preview" alt="Preview">
+                </div>
+                <button id="btn-add-memory" class="btn-primary" style="padding: 10px 24px; font-size: 13px; margin-top: 6px;">ADD TO FLOATING WALL</button>
+            </div>
+
+            <!-- Section 3: Add Custom Wall Artwork / Memory -->
+            <div class="curator-section">
+                <h3 class="section-title">🖼️ ADD CUSTOM WALL ARTWORK</h3>
+                <div class="form-group">
+                    <label for="curator-art-title">Artwork Title</label>
+                    <input type="text" id="curator-art-title" placeholder="e.g., Summer in Paris">
+                </div>
+                <div class="form-group">
+                    <label for="curator-art-artist">Artist / Subject</label>
+                    <input type="text" id="curator-art-artist" placeholder="e.g., Jane & John">
+                </div>
+                <div class="form-group">
+                    <label for="curator-art-year">Year</label>
+                    <input type="text" id="curator-art-year" placeholder="2026">
+                </div>
+                <div class="form-group">
+                    <label for="curator-art-desc">Description / Memory</label>
+                    <textarea id="curator-art-desc" rows="2" placeholder="Tell the story behind this piece..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="curator-art-file">Upload Photo or Painting</label>
+                    <input type="file" id="curator-art-file" accept="image/*">
+                    <img id="curator-art-preview" class="image-preview" alt="Preview">
+                </div>
+                <button id="btn-add-artwork" class="btn-primary" style="padding: 10px 24px; font-size: 13px; margin-top: 6px;">ADD TO GALLERY</button>
+            </div>
+
+            <!-- Section: Share Personalized Link -->
+            <div class="curator-section" style="background: rgba(212, 175, 55, 0.08); border-radius: 12px; padding: 16px; border: 1px dashed rgba(212, 175, 55, 0.4);">
+                <h3 class="section-title" style="margin-bottom: 6px;">🔗 SHARE PERSONALIZED MUSEUM</h3>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Create a personalized guest link with all your custom posters & memories. Visitors will not see any edit buttons.</p>
+                <button id="btn-curator-share" class="btn-primary" style="padding: 10px 24px; font-size: 13px; width: 100%;">OPEN SHARING & LINK CREATOR</button>
+            </div>
+
+            <!-- Section 4: Reset -->
+            <div class="curator-section" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12px; color: var(--text-muted);">Reset all custom changes to default museum</span>
+                <button id="btn-reset-curation" style="background: transparent; border: 1px solid #c0392b; color: #e74c3c; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px;">Reset Gallery</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Museum Modal (Admin only) -->
+    <div id="share-modal" class="modal-backdrop">
+        <div class="share-modal-card ui-interactive">
+            <button id="share-close-btn" class="modal-close" title="Close">✕</button>
+            <h2 style="font-family:'Cinzel',serif; color:var(--gold-light); font-size:20px; margin-bottom:4px;">🔗 Share This Museum</h2>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Create a personalised link for someone special. They'll see your custom posters, floating memories, and dedication — but with no editing tools.</p>
+
+            <div class="form-group">
+                <label for="share-recipient-name">Recipient's Name</label>
+                <input type="text" id="share-recipient-name" placeholder="e.g. Priya, Mom, Alex..." maxlength="60">
+            </div>
+
+            <button id="btn-generate-link" class="btn-primary" style="width:100%; padding:12px; font-size:14px; margin-bottom:14px;">
+                ✨ Generate Personalised Link
+            </button>
+
+            <div id="share-status" class="share-status" style="display:none;"></div>
+
+            <div id="share-result-box" style="display:none; margin-bottom:18px;">
+                <label style="font-size:11px; color:var(--gold); font-weight:600; display:block; margin-bottom:6px;">📎 Shareable Link:</label>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" id="share-generated-link" readonly style="flex:1; font-size:12px; font-family:monospace; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); color:var(--gold-light); padding:8px 12px; border-radius:8px;">
+                    <button onclick="window._shareModalInstance.copyLink()" class="btn-primary" style="padding:8px 14px; font-size:12px; white-space:nowrap;">📋 Copy</button>
+                </div>
+            </div>
+
+            <div style="border-top:1px solid rgba(212,175,55,0.15); padding-top:16px;">
+                <h4 style="font-size:13px; color:var(--gold); margin-bottom:10px; font-family:'Cinzel',serif;">Previously Shared</h4>
+                <div id="share-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Bootstrap (ES Module) -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
